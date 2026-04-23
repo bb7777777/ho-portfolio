@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs file:*)",
+      "Read(//c/Users/$USER/**)",
+      "Read(//mnt/c/**)",
+      "Bash(mkdir -p \"F:/web/photos\")",
+      "Bash(cp \"F:/photos/T2-KODAK200-東北/\"*.jpg \"F:/web/photos/\")",
+      "Bash(mv \"F:/web/photos/000881530\"*.jpg \"F:/web/photos/tohoku/\")",
+      "Bash(mv \"F:/web/photos/000828200\"*.jpg \"F:/web/photos/kagoshima/\")"
+    ]
+  }
+}
