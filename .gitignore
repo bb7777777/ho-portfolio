@@ -1,5 +1,4 @@
 # Photos — large binary files, manage separately
-photos/
 
 # OS
 .DS_Store
@@ -7,3 +6,4 @@ Thumbs.db
 
 # Editor
 .vscode/
+
