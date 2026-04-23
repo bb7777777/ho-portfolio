@@ -669,6 +669,7 @@
         prefix: 'photos/tohoku/000881530',
         label: (n) => `東北 — ${String(n).padStart(2, '0')}`,
         count: 25,
+        orient: 'PLLPPPLLLLLLLLLPPPLLLLPLL',
       },
       {
         name: '鹿児島の旅',
@@ -678,6 +679,7 @@
         prefix: 'photos/kagoshima/000828200',
         label: (n) => `鹿児島 — ${String(n).padStart(2, '0')}`,
         count: 25,
+        orient: 'LLPLLLLLLLLLPPLPPPPPPPPLL',
       },
       {
         name: '福岡の旅',
@@ -701,6 +703,7 @@
         ],
         label: (n) => `福岡 — ${String(n).padStart(2, '0')}`,
         count: 46,
+        orient: 'LLLLPLLPLLLLLLLLLLLLLPLLLLLPLPPLPLLLPPLPLLLLPL',
       },
       {
         name: '倉敷・廣島の旅',
@@ -719,11 +722,12 @@
           'DSCF5312.jpg','DSCF5315.jpg','DSCF5316.jpg','DSCF5320.jpg','DSCF5324.jpg',
           'DSCF5334.jpg','DSCF5342.jpg','DSCF5352.jpg','DSCF5353.jpg','DSCF5354.jpg',
           'DSCF5355.jpg','DSCF5359.jpg','DSCF5364.jpg','DSCF5365.jpg','DSCF5377.jpg',
-          'DSCF5380.jpg','DSCF5386.jpg','DSCF5394.jpg','DSCF5398.jpg','DSCF5399.jpg',
-          'DSCF5400.jpg','DSCF5401.jpg','DSCF5404.jpg'
+          'DSCF5380.jpg','DSCF5386.jpg','DSCF5394.jpg','DSCF5398.jpg','DSCF5400.jpg',
+          'DSCF5401.jpg'
         ],
         label: (n) => `倉敷・廣島 — ${String(n).padStart(2, '0')}`,
-        count: 58,
+        count: 56,
+        orient: 'LPPLPLPLLPPPPPPPLPPLLLLPPLPLLPLPPPPPPLLPPPPPPPPPPPPPLLPL',
       }
     ];
 
@@ -757,29 +761,69 @@
       const grid = document.getElementById('grid');
       grid.innerHTML = '';
 
-      let photoIdx = 1;
-      let rowIdx = 0;
-      while (photoIdx <= album.count) {
-        const rowDef = ROW_PATTERN[rowIdx % ROW_PATTERN.length];
-        rowIdx++;
-        const row = document.createElement('div');
-        row.className = `row ${rowDef.type}`;
+      const files = album.files
+        ? album.files
+        : Array.from({length: album.count}, (_, i) =>
+            `${album.prefix}${String(i+1).padStart(3,'0')}.jpg`);
+      const orient = album.orient || 'L'.repeat(files.length);
 
-        const itemsInRow = Math.min(rowDef.count, album.count - photoIdx + 1);
-        for (let k = 0; k < itemsInRow; k++) {
-          const n = photoIdx;
-          const idx = n - 1;
+      // --- orientation-aware row planner ---
+      // Rule: portrait photos MUST always share a row with another photo
+      const SINGLE_TYPES = ['full','wide-left','wide-right','small-center','full','wide-right'];
+      const PAIR_TYPES   = ['pair','offset-pair','pair','offset-pair-r'];
+      const plan = [];   // [{type, idxs:[...]}]
+      let si = 0, pi = 0, li = 0;
+      let i = 0;
+      while (i < files.length) {
+        const isP    = orient[i] === 'P';
+        const hasNext = i + 1 < files.length;
+        const nextIsP = hasNext && orient[i+1] === 'P';
+
+        if (isP) {
+          // Portrait: pair with next (whatever it is)
+          if (hasNext) {
+            plan.push({ type: PAIR_TYPES[pi++ % PAIR_TYPES.length], idxs: [i, i+1] });
+            i += 2;
+          } else {
+            plan.push({ type: 'small-center', idxs: [i] });
+            i++;
+          }
+        } else if (nextIsP) {
+          // Landscape followed by portrait: pair them
+          plan.push({ type: PAIR_TYPES[pi++ % PAIR_TYPES.length], idxs: [i, i+1] });
+          i += 2;
+        } else {
+          // Landscape + (landscape or end): rhythm
+          if (hasNext && li % 3 === 2) {
+            plan.push({ type: PAIR_TYPES[pi++ % PAIR_TYPES.length], idxs: [i, i+1] });
+            i += 2;
+          } else {
+            plan.push({ type: SINGLE_TYPES[si++ % SINGLE_TYPES.length], idxs: [i] });
+            i++;
+          }
+          li++;
+        }
+      }
+
+      // --- render rows ---
+      plan.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = `row ${row.type}`;
+        row.idxs.forEach(idx => {
           const item = document.createElement('div');
           item.className = 'grid-item';
           item.onclick = () => openLightbox(idx);
+          const src = album.files
+            ? `${album.dir}${album.files[idx]}`
+            : `${album.prefix}${String(idx+1).padStart(3,'0')}.jpg`;
+          const lbl = album.label(idx + 1);
           item.innerHTML = `
-            <img src="${imgPath(album, n)}" alt="${album.label(n)}" loading="lazy" />
-            <span class="frame-num">${String(n).padStart(2,'0')}</span>`;
-          row.appendChild(item);
-          photoIdx++;
-        }
-        grid.appendChild(row);
-      }
+            <img src="${src}" alt="${lbl}" loading="lazy" />
+            <span class="frame-num">${String(idx+1).padStart(2,'0')}</span>`;
+          rowEl.appendChild(item);
+        });
+        grid.appendChild(rowEl);
+      });
     }
 
     function switchAlbum(idx) {
